@@ -21,3 +21,7 @@ htmlcov/
 build/
 dist/
 *.egg-info/
+# Private authentication for media playback (never publish browser cookies).
+secrets/
+*cookies*.txt
+*cookies*.json

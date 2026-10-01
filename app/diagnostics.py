@@ -19,6 +19,7 @@ class Diagnostics:
                 result={'pid':os.getpid(),'telegram_connected':g.client.is_connected(),
                         'identity_verified':g.ready,'identity':g.config.identity,'owner_distinct':g.config.identity!=g.config.owner,
                         'voice_library_started':g.voice.started,'active_requests':len(g.tasks),
+                        'voice_preset':g.voice.preset(),'media_max_duration':g.config.media_max_duration,
                         'voice':{str(chat):g.voice.status(chat) for chat in g.voice.queues}}
             elif request.get('command')=='voice_smoke':
                 chat=int(request.get('chat',0));language=request.get('language','es')

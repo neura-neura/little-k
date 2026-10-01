@@ -10,6 +10,7 @@ class Storage:
         path.chmod(0o600)
         self.db.execute('PRAGMA journal_mode=WAL')
         self.db.executescript('''
+        CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT);
         CREATE TABLE IF NOT EXISTS conversations(chat INTEGER,topic INTEGER,session TEXT,PRIMARY KEY(chat,topic));
         CREATE TABLE IF NOT EXISTS events(key TEXT PRIMARY KEY,status TEXT,created REAL);
         CREATE TABLE IF NOT EXISTS messages(chat INTEGER,id INTEGER,original TEXT,language TEXT,translations TEXT,PRIMARY KEY(chat,id));
@@ -48,4 +49,10 @@ class Storage:
     def prune(self):
         # Keep IDs for idempotence; drop cached message content after 30 days via bounded row count.
         self.db.execute('DELETE FROM messages WHERE rowid NOT IN (SELECT rowid FROM messages ORDER BY rowid DESC LIMIT 1000)');self.db.commit()
+    def setting(self,key,default=None):
+        row=self.db.execute('SELECT value FROM settings WHERE key=?',(key,)).fetchone()
+        return json.loads(row[0]) if row else default
+    def set_setting(self,key,value):
+        self.db.execute('INSERT OR REPLACE INTO settings VALUES (?,?)',(key,json.dumps(value)))
+        self.db.commit()
     def close(self):self.db.close()

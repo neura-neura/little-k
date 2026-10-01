@@ -159,6 +159,23 @@ English/Chinese translations where Telegram exposes the reactor's identity;
 reply + `.t` is the reliable alternative. Normal Telegram accounts do not support
 Bot API callback buttons.
 
+## Media playback and persistent voice switching
+
+The owner can send `.voice gtts` to use the previous userbot's Google Translate
+voices, or `.voice macos` to return to the existing local voices. `.voice` shows
+the current choice. This global preference is saved across restarts; the initial
+default remains `macos`. gTTS requires internet and sends speech text to Google.
+
+Use `.play <URL>` (or a bare supported link) for YouTube, YouTube Music,
+Bilibili and NetEase audio in the group's existing call. Spotify links show
+NetEase matches: choose with `.pick <number>`. Audio comes from NetEase.
+`.pause`, `.resume`, `.next`, `.previous`, `.queue` and `.stop` control playback.
+NetEase albums/playlists advance automatically. All audio shares the same queue.
+
+See [media setup and commands](docs/MEDIA.md) for cookies, optional gTTS accents,
+limits and collection behavior. Cookies stay in the ignored `secrets/` folder.
+Install a current Node.js or Deno for YouTube's JavaScript challenges.
+
 ## Voice settings
 
 Default voices: Paulina (Spanish), Samantha (English), Tingting (Chinese), Kyoko

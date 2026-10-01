@@ -17,7 +17,10 @@ are retried; ambiguous generation timeouts are not replayed automatically.
 SQLite tracks deduplication, session mappings and up to 1,000 own replies for
 translation/editing. Only Little K's own messages can be edited.
 
-Voice uses macOS `say`, ffmpeg and PyTgCalls/NTgCalls. The gateway joins an existing
+Voice uses a persistent choice of macOS `say` or gTTS, ffmpeg and PyTgCalls/NTgCalls.
+Media adapters use yt-dlp for YouTube/Bilibili and the earlier bot's NetEase
+protocol for songs/collections. Spotify metadata maps to a requester-scoped
+NetEase selection. Speech and media share one cancellation-aware queue per group. The gateway joins an existing
 group call with `auto_start=False`, waits for connection, then feeds a native PCM
 file at 48 kHz stereo. A short silence margin protects brief clips. Per-group
 queues preserve playback order, idle calls are left automatically, and interrupted

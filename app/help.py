@@ -24,6 +24,22 @@ Reply with .c to read the quoted message aloud.
 Combine shortcuts: .t zh .c What is the weather today in Monterrey?
 You can reverse their order. .tzh and .t.zh also work. Shortcuts are case-insensitive.
 
+Audio and voice commands
+.voice — Show the current voice preset and available choices.
+.voice macos — Use the existing local macOS voices (owner only).
+.voice gtts — Use the previous bot's Google Translate TTS voices (owner only).
+.voice gtts [default|mx|es|uk|au|ie|in] — Choose the previous bot's accent/domain preset.
+The voice choice is global, saved across restarts, and applies to newly queued speech. default matches the previous bot. gTTS requires internet and sends speech text to Google.
+
+.play <URL> — Play audio from YouTube, YouTube Music, Bilibili or NetEase (music.163.com) in this group's existing voice chat. A bare supported link also works. Reply to a link with .play to use it.
+Spotify track/album/playlist links search NetEase matches; audio comes from NetEase, not Spotify. Use .pick <number> to select a result within 5 minutes; .pick 0 cancels.
+NetEase albums/playlists advance automatically. .next and .previous navigate the collection; .next also skips standalone audio.
+.pause — Pause current playback.
+.resume — Resume playback.
+.queue — Show current playback and queue state.
+.stop — Stop all audio, clear the queue/collection and leave this group's call.
+Media controls work for members of allowed groups. Streams/queues are not replayed after restart. Downloaded audio is temporary; private cookies stay local.
+
 Natural language works too: Little K, answer in Chinese and read it in the call.
 In allowed private chats, just write normally. In allowed groups, mention Little K, start with “Little K,”, reply to it, or use a shortcut.
 

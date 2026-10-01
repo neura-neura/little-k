@@ -2,6 +2,7 @@ import os
 import plistlib
 import subprocess
 import sys
+import time
 from pathlib import Path
 from app.config import ROOT
 from dotenv import dotenv_values
@@ -18,11 +19,18 @@ def install():
     d={'Label':LABEL,'ProgramArguments':[str(ROOT/'.venv/bin/python'),'-m','app'],
        'WorkingDirectory':str(ROOT),'RunAtLoad':True,'KeepAlive':True,'ThrottleInterval':30,
        'ExitTimeOut':30,'Umask':63,
-       'EnvironmentVariables':{'PATH':os.pathsep.join([str(ROOT/'.venv/bin'),os.environ.get('PATH',''),'/opt/homebrew/bin','/usr/local/bin','/usr/bin','/bin','/usr/sbin','/sbin']),'PYTHONUNBUFFERED':'1'},
+       'EnvironmentVariables':{'PATH':os.pathsep.join([str(ROOT/'.venv/bin'),str(Path.home()/'.local/bin'),os.environ.get('PATH',''),'/opt/homebrew/bin','/usr/local/bin','/usr/bin','/bin','/usr/sbin','/sbin']),'PYTHONUNBUFFERED':'1'},
        'StandardOutPath':str(ROOT/'logs/launchd.out.log'),'StandardErrorPath':str(ROOT/'logs/launchd.err.log')}
     PLIST.parent.mkdir(exist_ok=True);PLIST.write_bytes(plistlib.dumps(d));PLIST.chmod(0o600)
     command('bootout',DOMAIN+'/'+LABEL,check=False)
-    command('bootstrap',DOMAIN,str(PLIST));print('Installed',LABEL)
+    # launchd can still be unloading the previous process after bootout returns.
+    for attempt in range(60):
+        result=command('bootstrap',DOMAIN,str(PLIST),check=False)
+        if result.returncode==0:break
+        if result.returncode!=5 or attempt==59:
+            result.check_returncode()
+        time.sleep(0.5)
+    print('Installed',LABEL)
 
 def main():
     if sys.prefix==sys.base_prefix:raise SystemExit('Use .venv/bin/python')

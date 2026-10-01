@@ -9,6 +9,7 @@ from .storage import Storage
 from .hermes import Hermes
 from .voice import Voice
 from .help import is_help_command, help_text
+from .playback import Playback, is_playback_request
 
 log=logging.getLogger(__name__)
 def detect_language(text):
@@ -29,6 +30,7 @@ class Gateway:
         self.locks=defaultdict(asyncio.Lock);self.reaction_locks=defaultdict(asyncio.Lock)
         self.tasks=set();self.last_request={};self.username=None;self.ready=False
         self.voice=Voice(self.client,config,self.storage,self.send)
+        self.playback=Playback(self);self.diagnostics=None;self.closed=False
         self.client.add_event_handler(self.on_message,events.NewMessage(incoming=True))
         self.client.add_event_handler(self.on_reaction,events.Raw(types.UpdateMessageReactions))
     async def telegram(self,fn,*args,**kwargs):
@@ -52,13 +54,14 @@ class Gateway:
         if not self.ready:return
         if not self.config.allowed(event.chat_id,event.sender_id,event.is_private,event.out):return
         help_requested=is_help_command(event.raw_text)
+        playback_requested=is_playback_request(event.raw_text)
         request=parse(event.raw_text or '')
         if not request.text and not (request.translate or request.speak):return
         reply=await event.get_reply_message() if event.is_reply else None
         mentioned=event.mentioned or (self.username and '@'+self.username.lower() in event.raw_text.lower())
         addressed=event.raw_text.lower().startswith(('little k','littlek','@littlek'))
         # Owner can use natural language in allowlisted groups; others must explicitly address K.
-        if not event.is_private and not (help_requested or mentioned or addressed or request.translate or request.speak or
+        if not event.is_private and not (help_requested or playback_requested or mentioned or addressed or request.translate or request.speak or
             (reply and reply.sender_id==self.config.identity) or event.sender_id==self.config.owner or event.raw_text.lower().startswith('/k ')):return
         event._littlek_route_only = not event.is_private and not (mentioned or addressed or
                 request.translate or request.speak or (reply and reply.sender_id==self.config.identity)
@@ -73,6 +76,8 @@ class Gateway:
             try:
                 if is_help_command(event.raw_text):
                     await self.send(chat,help_text(event.sender_id==self.config.owner),event.id,language='en')
+                    self.storage.finish(key);return
+                if is_playback_request(event.raw_text) and await self.playback.handle(event,reply):
                     self.storage.finish(key);return
                 if await self.admin(event,topic):self.storage.finish(key);return
                 now=time.monotonic();previous=self.last_request.get(event.sender_id,0)
@@ -162,14 +167,17 @@ class Gateway:
             text=f'Little K · Telegram OK · Hermes {hermes} · voz {self.voice.status(chat)}'
         elif cmd=='new':self.storage.reset(chat,topic);text='conversación nueva 🐾'
         elif cmd=='voice status':text=str(self.voice.status(chat))
-        elif cmd=='voice stop':await self.voice.stop(chat);text='ya me callé 🐈'
-        elif cmd=='voice clear':text=f'cola vaciada: {self.voice.clear(chat)}'
+        elif cmd=='voice stop':
+            self.playback.cancel_collection(chat);await self.voice.stop(chat);text='ya me callé 🐈'
+        elif cmd=='voice clear':
+            self.playback.cancel_collection(chat);text=f'cola vaciada: {self.voice.clear(chat)}'
         elif cmd=='reload':
             cfg=Config.load()
             if (cfg.identity,cfg.owner,cfg.api_id,cfg.session)!=(self.config.identity,self.config.owner,self.config.api_id,self.config.session):
                 text='para cambiar identidad o credenciales, reinicia el servicio'
             else:
-                self.config=cfg;self.hermes.config=cfg;self.voice.config=cfg;self.voice.tts.config=cfg;text='configuración recargada 🐾'
+                self.config=cfg;self.hermes.config=cfg;self.voice.config=cfg;self.voice.tts.config=cfg;self.voice.media.config=cfg;
+                self.voice.media.netease.cookie_path=cfg.netease_cookies;self.voice.media.netease.max_tracks=cfg.media_max_tracks;text='configuración recargada 🐾'
         else:text='/k status · new · voice status · voice stop · voice clear · reload'
         await self.send(chat,text,event.id);return True
     async def monitor(self):
@@ -191,7 +199,7 @@ class Gateway:
             raise ValueError('Session identity mismatch: refusing to start')
         self.username=me.username;self.ready=True
         from .diagnostics import Diagnostics
-        diagnostics=Diagnostics(self);await diagnostics.start()
+        diagnostics=Diagnostics(self);self.diagnostics=diagnostics;await diagnostics.start()
         log.info('Telegram MTProto connected; Little K identity verified id=%s owner=%s',me.id,self.config.owner)
         try:await self.voice.start()
         except Exception as exc:log.warning('Voice initialization failed type=%s; will retry on request',type(exc).__name__)
@@ -202,6 +210,20 @@ class Gateway:
         finally:
             monitor.cancel();stopper.cancel();disconnected.cancel()
             await asyncio.gather(monitor,stopper,disconnected,return_exceptions=True)
-            for task in list(self.tasks):task.cancel()
-            await asyncio.gather(*self.tasks,return_exceptions=True)
-            await diagnostics.close();await self.voice.close();await self.client.disconnect();await self.hermes.close();self.storage.close()
+            await self.close()
+    async def close(self):
+        if self.closed:return
+        self.closed=True;self.ready=False
+        for task in list(self.tasks):task.cancel()
+        await asyncio.gather(*list(self.tasks),return_exceptions=True)
+        # Release every resource even when an earlier close operation fails.
+        callbacks=[]
+        if self.diagnostics:callbacks.append(self.diagnostics.close)
+        callbacks.extend((self.voice.close,self.client.disconnect,self.hermes.close))
+        failed=False
+        for close in callbacks:
+            try:await close()
+            except Exception as exc:
+                failed=True;log.error('Shutdown step failed type=%s',type(exc).__name__)
+        self.storage.close()
+        log.info('Gateway shutdown completed clean=%s',not failed)

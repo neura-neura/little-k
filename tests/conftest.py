@@ -6,8 +6,8 @@ from app import config
 def isolated_config(tmp_path, monkeypatch):
     monkeypatch.setattr(config, 'ROOT', tmp_path)
     for key in list(__import__('os').environ):
-        if key.startswith(('TELEGRAM_', 'HERMES_', 'VOICE_', 'LITTLE_K_')) or key in (
-            'OWNER_USER_ID','ALLOWED_CHAT_IDS','ALLOWED_PRIVATE_USER_IDS','DATABASE_PATH','FFMPEG_PATH','TTS_RATE'):
+        if key.startswith(('TELEGRAM_', 'HERMES_', 'VOICE_', 'LITTLE_K_','MEDIA_')) or key in (
+            'OWNER_USER_ID','ALLOWED_CHAT_IDS','ALLOWED_PRIVATE_USER_IDS','DATABASE_PATH','FFMPEG_PATH','TTS_RATE','YOUTUBE_COOKIES_PATH','BILIBILI_COOKIES_PATH','NETEASE_COOKIES_PATH'):
             monkeypatch.delenv(key)
     (tmp_path/'.env').write_text('''TELEGRAM_API_ID=12345
 TELEGRAM_API_HASH=fake-test-hash

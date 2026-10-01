@@ -28,6 +28,13 @@ class Config:
     voices: dict
     ffmpeg: str
     db: Path
+    youtube_cookies: Path | None = None
+    bilibili_cookies: Path | None = None
+    netease_cookies: Path | None = None
+    media_timeout: float = 300
+    media_max_duration: float = 7200
+    media_max_bytes: int = 200 * 1024 * 1024
+    media_max_tracks: int = 100
     api_key: str = field(default="", repr=False)
 
     @classmethod
@@ -40,7 +47,8 @@ class Config:
             'LITTLE_K_TELEGRAM_USER_ID','ALLOWED_CHAT_IDS','ALLOWED_PRIVATE_USER_IDS',
             'TELEGRAM_SESSION_PATH','HERMES_BASE_URL','HERMES_KEY_FILE','HERMES_API_KEY',
             'HERMES_PROFILE','HERMES_TIMEOUT','VOICE_ENABLED','VOICE_IDLE_TIMEOUT',
-            'TTS_RATE','FFMPEG_PATH','DATABASE_PATH'} | {'VOICE_'+x for x in ('ES','EN','ZH','JA','KO','FR','DE','PT','IT')}
+            'TTS_RATE','FFMPEG_PATH','DATABASE_PATH','YOUTUBE_COOKIES_PATH','BILIBILI_COOKIES_PATH',
+            'NETEASE_COOKIES_PATH','MEDIA_TIMEOUT','MEDIA_MAX_DURATION','MEDIA_MAX_BYTES','MEDIA_MAX_TRACKS'} | {'VOICE_'+x for x in ('ES','EN','ZH','JA','KO','FR','DE','PT','IT')}
         d.update({k:os.environ[k] for k in supported if k in os.environ})
         for key in ('TELEGRAM_API_ID','TELEGRAM_API_HASH','OWNER_USER_ID'):
             if not d.get(key):raise ValueError(f'Missing {key}; configure .env from .env.example')
@@ -57,7 +65,8 @@ class Config:
             raise ValueError('Hermes URL must be local loopback')
         if d.get('VOICE_ENABLED','true').lower() not in ('true','false'):
             raise ValueError('VOICE_ENABLED must be true or false')
-        for key, default in (('HERMES_TIMEOUT',240),('VOICE_IDLE_TIMEOUT',20),('TTS_RATE',185)):
+        for key, default in (('HERMES_TIMEOUT',240),('VOICE_IDLE_TIMEOUT',20),('TTS_RATE',185),('MEDIA_TIMEOUT',300),('MEDIA_MAX_DURATION',7200),
+                             ('MEDIA_MAX_BYTES',200*1024*1024),('MEDIA_MAX_TRACKS',100)):
             if float(d.get(key,default)) <= 0:
                 raise ValueError(f'{key} must be positive')
         return cls(int(d['TELEGRAM_API_ID']), d['TELEGRAM_API_HASH'], owner, identity,
@@ -70,7 +79,13 @@ class Config:
                     {'es':'Paulina','en':'Samantha','zh':'Tingting','ja':'Kyoko','ko':'Yuna',
                      'fr':'Thomas','de':'Anna','pt':'Luciana','it':'Alice'}.items()},
                    d.get('FFMPEG_PATH') or shutil.which('ffmpeg') or 'ffmpeg',
-                   path(d.get('DATABASE_PATH') or 'data/state.sqlite3'), d.get('HERMES_API_KEY',''))
+                   path(d.get('DATABASE_PATH') or 'data/state.sqlite3'),
+                   path(d.get('YOUTUBE_COOKIES_PATH') or 'secrets/cookies/youtube.txt'),
+                   path(d.get('BILIBILI_COOKIES_PATH') or 'secrets/cookies/bilibili.txt'),
+                   path(d.get('NETEASE_COOKIES_PATH') or 'secrets/cookies/netease.json'),
+                   float(d.get('MEDIA_TIMEOUT',300)),float(d.get('MEDIA_MAX_DURATION',7200)),
+                   int(d.get('MEDIA_MAX_BYTES',200*1024*1024)),int(d.get('MEDIA_MAX_TRACKS',100)),
+                   d.get('HERMES_API_KEY',''))
 
     def allowed(self, chat, sender, private, outgoing=False):
         if outgoing or sender == self.identity or sender is None:
