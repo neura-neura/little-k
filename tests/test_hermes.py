@@ -1,4 +1,6 @@
 import httpx
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 import pytest
 from app.hermes import Hermes,object_json
 from app.config import Config
@@ -33,3 +35,14 @@ async def test_ambiguous_read_timeout_never_retries():
 def test_internal_protocol_rejects_plain_text():
     assert object_json('```json\n{"text":"hi"}\n```')['text']=='hi'
     with pytest.raises(ValueError):object_json('["unsafe"]')
+
+@pytest.mark.asyncio
+async def test_translation_shortcut_without_source_is_actionable_not_error():
+    h=Hermes(Config.load());h.classify=AsyncMock()
+    try:
+        answer=await h.answer(SimpleNamespace(translate=True,text='',language='zh',speak=False),None,1,0,None)
+        assert 'responde' in answer.text.lower() or 'incluye' in answer.text.lower()
+        assert answer.mode=='translation'
+        assert answer.language=='es'
+        h.classify.assert_not_awaited()
+    finally:await h.close()

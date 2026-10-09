@@ -86,6 +86,8 @@ class Hermes:
                 'Convierte final_answer al protocolo JSON exacto: {"text":"respuesta visible", "language":"código ISO", "speak":false, "mode":"conversation"}. Conserva íntegro el contenido, fuentes y enlaces de la respuesta final. Si ya hay un objeto JSON incrustado, extrae sus campos. No resuelvas otra vez la tarea, no agregues información, no uses herramientas ni guardes memorias. Devuelve sólo JSON.')
             return object_json(repaired)
     async def answer(self,request,reply,chat,topic,storage,intent=None):
+        if request.translate and not request.text and not reply:
+            return Answer('Responde al mensaje que quieres traducir o incluye el texto después del comando `.t`.', 'es',False,'translation')
         async with self.semaphore:
             intent=intent or await self.classify(request,reply)
             payload={'user_text':request.text,'reply_text':reply,'telegram_chat_id':chat,'topic_id':topic,

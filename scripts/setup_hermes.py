@@ -20,9 +20,9 @@ def ensure_key(path):
 def main():
     os.umask(0o077)
     settings=dotenv_values(ROOT/'.env')
-    profile=os.environ.get('HERMES_PROFILE') or settings.get('HERMES_PROFILE') or 'little-k'
+    profile=os.environ.get('HERMES_PROFILE') or settings.get('HERMES_PROFILE') or 'little-k-companion'
     if not re.fullmatch(r'[a-z][a-z0-9-]{0,63}',profile) or profile=='default':
-        raise SystemExit('Use a separate Hermes profile name, such as little-k.')
+        raise SystemExit('Use a separate Hermes profile name, such as little-k-companion.')
     home=Path(os.environ.get('HERMES_HOME','~/.hermes')).expanduser()
     if not (home/'config.yaml').exists():
         raise SystemExit('Install Hermes and configure its default model/provider first; see README.')

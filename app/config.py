@@ -60,7 +60,7 @@ class Config:
             return p if p.is_absolute() else root/p
         if owner == identity:
             raise ValueError('OWNER must differ from Little K identity')
-        url = d.get('HERMES_BASE_URL','http://127.0.0.1:8642/p/little-k').rstrip('/')
+        url = d.get('HERMES_BASE_URL','http://127.0.0.1:8642/p/little-k-companion').rstrip('/')
         if urlparse(url).scheme not in ('http','https') or urlparse(url).username or urlparse(url).hostname not in ('127.0.0.1', 'localhost', '::1'):
             raise ValueError('Hermes URL must be local loopback')
         if d.get('VOICE_ENABLED','true').lower() not in ('true','false'):
@@ -72,7 +72,7 @@ class Config:
         return cls(int(d['TELEGRAM_API_ID']), d['TELEGRAM_API_HASH'], owner, identity,
                    ids(d.get('ALLOWED_CHAT_IDS')), ids(d.get('ALLOWED_PRIVATE_USER_IDS')),
                    path(d.get('TELEGRAM_SESSION_PATH') or 'little-k.session'), url,
-                   path(d.get('HERMES_KEY_FILE') or f"~/.hermes/profiles/{d.get('HERMES_PROFILE','little-k')}/.env"), float(d.get('HERMES_TIMEOUT',240)),
+                   path(d.get('HERMES_KEY_FILE') or f"~/.hermes/profiles/{d.get('HERMES_PROFILE','little-k-companion')}/.env"), float(d.get('HERMES_TIMEOUT',240)),
                    d.get('VOICE_ENABLED','true').lower()=='true', float(d.get('VOICE_IDLE_TIMEOUT',20)),
                    int(d.get('TTS_RATE',185)),
                    {lang:d.get('VOICE_'+lang.upper(), voice) for lang,voice in

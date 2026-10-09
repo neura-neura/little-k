@@ -67,7 +67,7 @@ not install Hermes or choose a model for you. With Hermes configured:
 hermes --profile default gateway restart
 ```
 
-The helper creates the `little-k` native profile by cloning the default profile's
+The helper creates the `little-k-companion` native profile by cloning the default profile's
 configuration, gives a **new profile** the included kitten personality, provisions
 separate API keys and enables native profile multiplexing. Existing Little K
 personality/model settings are preserved. Native cloning can copy curated memory
@@ -81,7 +81,7 @@ The Hermes gateway must remain running alongside Little K. See the native
 [Hermes CLI reference](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/reference/cli-commands.md)
 for service installation on your system.
 
-The default API URL is `http://127.0.0.1:8642/p/little-k`. Configure
+The default API URL is `http://127.0.0.1:8642/p/little-k-companion`. Configure
 `HERMES_PROFILE`, `HERMES_BASE_URL` and `HERMES_KEY_FILE` consistently if you use
 another profile, port or Hermes home. The helper honors `HERMES_HOME` and
 `HERMES_CLI` environment variables. It refuses to change an existing API port

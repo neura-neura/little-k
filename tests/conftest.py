@@ -14,7 +14,7 @@ TELEGRAM_API_HASH=fake-test-hash
 OWNER_USER_ID=1001
 LITTLE_K_TELEGRAM_USER_ID=2002
 ALLOWED_CHAT_IDS=-1003003
-HERMES_BASE_URL=http://127.0.0.1:8642/p/little-k
+HERMES_BASE_URL=http://127.0.0.1:8642/p/little-k-companion
 HERMES_KEY_FILE=hermes.env
 ''')
     (tmp_path/'hermes.env').write_text('API_SERVER_KEY=fake-test-api-key\n')
