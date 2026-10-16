@@ -137,8 +137,11 @@ and `.t.zh`. Translation language codes include `es`, `en`, `zh`, `ja`, `ko`,
 `fr`, `de`, `pt` and `it`; `.h` lists all supported text codes. Spoken output
 requires a configured, installed system voice for that language.
 
-In allowed private chats, write normally. In allowed groups, mention Little K,
-reply to it, start with “Little K,” or use a shortcut. Natural language such as
+In allowed private chats and groups, write normally: every incoming message is
+processed, with no mention or trigger required. Conversational replies are also
+spoken automatically whenever that group has an active voice chat. Send a photo
+with an optional caption, or reply to a photo with a question, for image analysis
+(JPEG, PNG, WebP or GIF, up to 5 MB; the Hermes model must support vision). Natural language such as
 “Little K, answer in Chinese and read it in the call” also works through Hermes.
 Members of an allowed group can address Little K; only the owner can administer it.
 

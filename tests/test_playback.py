@@ -104,3 +104,37 @@ def test_explicit_commands(text):assert is_playback_request(text)
 
 @pytest.mark.parametrize('text',['Discuss https://youtu.be/abc','https://youtube.com.evil.example/a','.playlist'])
 def test_regular_messages_not_intercepted(text):assert not is_playback_request(text)
+
+@pytest.mark.asyncio
+async def test_ordinary_member_group_message_routes_without_trigger(tmp_path):
+    g=object.__new__(Gateway);g.config=Config.load();g.ready=True;g.tasks=set()
+    g.storage=Storage(tmp_path/'state.db');g.process=AsyncMock()
+    e=SimpleNamespace(chat_id=next(iter(g.config.chats)),sender_id=5555,is_private=False,out=False,
+                      raw_text='Hola a todos',id=99,is_reply=False,message=SimpleNamespace(photo=None))
+    try:
+        await g.on_message(e);await asyncio.gather(*list(g.tasks))
+        g.process.assert_awaited_once()
+    finally:g.storage.close()
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('call_active',[True,False])
+async def test_normal_answer_automatically_spoken_only_with_active_call(tmp_path,call_active):
+    from app.hermes import Answer
+    from app.parser import parse
+    from unittest.mock import Mock
+    g=object.__new__(Gateway);g.config=Config.load();g.locks=defaultdict(asyncio.Lock)
+    g.storage=Storage(tmp_path/'state.db');g.last_request={};g.admin=AsyncMock(return_value=False)
+    g.active_call=AsyncMock(return_value=call_active)
+    g.hermes=SimpleNamespace(answer=AsyncMock(return_value=Answer('Hola','es',False)))
+    g.voice=SimpleNamespace(enqueue=Mock());g.send=AsyncMock(return_value=[SimpleNamespace(id=25)])
+    class Action:
+        async def __aenter__(self):return self
+        async def __aexit__(self,*args):pass
+    g.client=SimpleNamespace(action=lambda *args:Action())
+    e=SimpleNamespace(chat_id=next(iter(g.config.chats)),sender_id=5555,is_private=False,
+                      raw_text='Hola',id=99,message=SimpleNamespace(photo=None,reply_to=None))
+    try:
+        g.storage.claim('test');await g.process(e,parse('Hola'),None,'test')
+        g.hermes.answer.assert_awaited_once()
+        assert g.voice.enqueue.call_count==int(call_active)
+    finally:g.storage.close()

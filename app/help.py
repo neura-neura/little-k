@@ -41,7 +41,7 @@ NetEase albums/playlists advance automatically. .next and .previous navigate the
 Media controls work for members of allowed groups. Streams/queues are not replayed after restart. Downloaded audio is temporary; private cookies stay local.
 
 Natural language works too: Little K, answer in Chinese and read it in the call.
-In allowed private chats, just write normally. In allowed groups, mention Little K, start with “Little K,”, reply to it, or use a shortcut.
+In allowed private chats, just write normally. Every incoming message in an allowed group reaches Little K without a mention or trigger. When a voice chat is active, conversational replies are also spoken automatically. Send a photo with an optional caption, or reply to a photo with a question, to ask about an image (up to 5 MB; Hermes needs a vision-capable model).
 
 Language codes: """ + ', '.join(sorted(LANGS)) + ".\nCommon codes: es Spanish, en English, zh Chinese, ja Japanese, ko Korean, fr French, de German, pt Portuguese, it Italian. Voice playback also needs a configured voice for the chosen language."
     if owner:

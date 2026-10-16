@@ -8,6 +8,7 @@ from .parser import parse, split_text, topic_id
 from .storage import Storage
 from .hermes import Hermes
 from .voice import Voice
+from .images import is_image, image_part
 from .help import is_help_command, help_text
 from .playback import Playback, is_playback_request
 
@@ -53,25 +54,15 @@ class Gateway:
     async def on_message(self,event):
         if not self.ready:return
         if not self.config.allowed(event.chat_id,event.sender_id,event.is_private,event.out):return
-        help_requested=is_help_command(event.raw_text)
-        playback_requested=is_playback_request(event.raw_text)
         request=parse(event.raw_text or '')
-        if not request.text and not (request.translate or request.speak):return
         reply=await event.get_reply_message() if event.is_reply else None
-        mentioned=event.mentioned or (self.username and '@'+self.username.lower() in event.raw_text.lower())
-        addressed=event.raw_text.lower().startswith(('little k','littlek','@littlek'))
-        # Owner can use natural language in allowlisted groups; others must explicitly address K.
-        if not event.is_private and not (help_requested or playback_requested or mentioned or addressed or request.translate or request.speak or
-            (reply and reply.sender_id==self.config.identity) or event.sender_id==self.config.owner or event.raw_text.lower().startswith('/k ')):return
-        event._littlek_route_only = not event.is_private and not (mentioned or addressed or
-                request.translate or request.speak or (reply and reply.sender_id==self.config.identity)
-                or event.raw_text.lower().startswith(('k,','/k ')))
+        if not request.text and not (request.translate or request.speak or is_image(event.message)):return
         key=f'message:{event.chat_id}:{event.id}'
         if not self.storage.claim(key):return
         task=asyncio.create_task(self.process(event,request,reply,key));self.tasks.add(task)
         task.add_done_callback(self.tasks.discard)
     async def process(self,event,request,reply,key):
-        chat=event.chat_id;topic=topic_id(event.message);start=time.monotonic()
+        chat=event.chat_id;topic=topic_id(event.message);start=time.monotonic();images=[]
         async with self.locks[(chat,topic)]:
             try:
                 if is_help_command(event.raw_text):
@@ -84,35 +75,52 @@ class Gateway:
                 if now-previous<1.5:await asyncio.sleep(1.5-(now-previous))
                 self.last_request[event.sender_id]=time.monotonic()
                 intent=None
-                if getattr(event,'_littlek_route_only',False):
-                    intent=await self.hermes.classify(request,reply.raw_text if reply else None)
-                    # Only explicit operations directed at this gateway activate an unaddressed group turn.
-                    if not intent['speak'] and intent['mode']!='translation':
-                        self.storage.finish(key,'ignored');return
+                images=[]
+                for message in (event.message,reply):
+                    if is_image(message):images.append(await image_part(self.client,message))
                 async with self.client.action(chat,'typing'):
                     if request.translate and not request.text and reply and self.storage.message(chat,reply.id):
                         answer=await self.edit_translation(chat,reply,request.language)
-                        if request.speak:self.voice.enqueue(chat,reply.id,answer.text,answer.language)
+                        if request.speak or await self.active_call(chat):self.voice.enqueue(chat,reply.id,answer.text,answer.language)
                     else:
                         # Deterministic .c-only reply: read the referenced answer/text, do not answer it again.
-                        if request.speak and not request.text and not request.translate and reply:
+                        if request.speak and not request.text and not request.translate and reply and reply.raw_text and not images:
                             from .hermes import Answer
                             record=self.storage.message(chat,reply.id)
                             answer=Answer(reply.raw_text,record['language'] if record else detect_language(reply.raw_text),True)
                         else:
-                            answer=await self.hermes.answer(request,reply.raw_text if reply else None,chat,topic,self.storage,intent=intent)
+                            answer=await self.hermes.answer(request,reply.raw_text if reply else None,chat,topic,self.storage,intent=intent,**({'images':images} if images else {}))
                         sent=await self.send(chat,answer.text,event.id,answer.language)
-                        if answer.speak:
+                        if answer.speak or await self.active_call(chat):
                             try:self.voice.enqueue(chat,sent[0].id,answer.text,answer.language)
                             except Exception:await self.send(chat,'necesito una llamada activa en un grupo permitido 🐈',event.id)
                 self.storage.finish(key);self.storage.prune()
                 log.info('Request completed chat=%s topic=%s elapsed=%.1fs',chat,topic,time.monotonic()-start)
+            except ValueError as exc:
+                self.storage.finish(key,'failed')
+                if images or is_image(event.message) or is_image(reply):
+                    await self.send(chat,'No pude procesar la imagen. Usa una foto JPEG/PNG/WebP de hasta 5 MB y un modelo Hermes con visión.',event.id)
+                else:
+                    log.error('Request failed chat=%s type=ValueError',chat)
+                    await self.send(chat,'mmm... algo salió mal allá atrás 🐈',event.id)
             except asyncio.CancelledError:self.storage.finish(key,'interrupted');raise
             except Exception as exc:
                 self.storage.finish(key,'failed')
                 log.error('Request failed chat=%s type=%s',chat,type(exc).__name__)
                 try:await self.send(chat,'mmm... algo salió mal allá atrás 🐈',event.id)
                 except Exception:log.warning('Error notification failed')
+    async def active_call(self,chat):
+        if chat>=0 or not self.config.voice_enabled:return False
+        try:
+            from telethon import functions
+            entity=await self.client.get_entity(chat)
+            if isinstance(entity,types.Channel):
+                full=await self.client(functions.channels.GetFullChannelRequest(entity))
+            else:full=await self.client(functions.messages.GetFullChatRequest(entity.id))
+            return getattr(full.full_chat,'call',None) is not None
+        except Exception as exc:
+            log.warning('Active call lookup failed type=%s',type(exc).__name__)
+            return False
     async def edit_translation(self,chat,reply,language):
         if reply.sender_id!=self.config.identity:raise ValueError('Cannot edit another identity')
         async with self.reaction_locks[(chat,reply.id)]:
